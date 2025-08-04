@@ -2,7 +2,7 @@
 # This MUST be set before importing any Flask-Dance or OAuth libraries.
 import os
 import pathlib
-import sys
+
 import requests
 from flask import Flask, session, abort, redirect, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -17,20 +17,20 @@ import google.auth.transport.requests
 from Config import Config
 from models import db, User, Todo
 from flask_cors import CORS
-from sqlalchemy.exc import IntegrityError
 
-# The following line is crucial for local development, as it allows HTTP traffic.
+# The following two lines are crucial to get OAuth working on a local development server
+# They must be present before importing any other OAuth-related libraries
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 # Create the Flask application instance
-app = Flask(__name__)
+app = Flask("Google Login App")
 
 # Load configuration from the Config object
 app.config.from_object(Config)
 CORS(app, supports_credentials=True)
 
-# Set a secret key for session management, required for OAuth.
-app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24))
+# Set a secret key for session management, required for Flask-Dance.
+app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(24)
 
 # Initialize extensions
 db.init_app(app)
@@ -38,13 +38,18 @@ migrate = Migrate(app, db)
 jwt = JWTManager(app)
 mail = Mail(app)
 
-# --- Google OAuth Configuration based on your code ---
+# The GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are now retrieved from environment variables.
+# You MUST set these environment variables before running the application.
+# For example, on Linux/macOS:
+# export GOOGLE_CLIENT_ID="<your-client-id>"
+# export GOOGLE_CLIENT_SECRET="<your-client-secret>"
+# On Windows (cmd):
+# set GOOGLE_CLIENT_ID="<your-client-id>"
+# set GOOGLE_CLIENT_SECRET="<your-client-secret>"
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET")
-backend_url = os.environ.get("BACKEND_URL", "http://127.0.0.1:5000")
-frontend_url = os.environ.get("FRONTEND_URL", "http://127.0.0.1:5173")
 
-# Set up the OAuth flow with environment variables
+# Initialize the Google OAuth flow directly with environment variables.
 flow = Flow.from_client_config(
     client_config={
         "web": {
@@ -56,12 +61,23 @@ flow = Flow.from_client_config(
         }
     },
     scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email", "openid"],
-    redirect_uri=f"{backend_url}/callback"
+    redirect_uri="https://to-do-app-managemnt-1.onrender.com/callback" # This URL must match the one in your Google API console.
 )
 
 # Create the database tables if they don't exist
 with app.app_context():
     db.create_all()
+
+# --- Helper function for authentication ---
+def login_is_required(function):
+    """Decorator to protect routes from unauthenticated users."""
+    def wrapper(*args, **kwargs):
+        if "google_id" not in session:
+            return abort(401)  # Authorization required
+        else:
+            return function(*args, **kwargs)
+
+    return wrapper
 
 # --- User authentication routes ---
 
@@ -87,16 +103,9 @@ def register():
         password_hash=hashed_password,
         userName=userName
     )
-    try:
-        db.session.add(new_user)
-        db.session.commit()
-        return jsonify({"msg": "User registered successfully"}), 201
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({"msg": "Email already exists"}), 409
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"msg": str(e)}), 500
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({"msg": "User registered successfully"}), 201
 
 @app.route("/login", methods=["POST"])
 def login():
@@ -128,18 +137,20 @@ def callback():
     Handles the callback from Google after the user signs in.
     It verifies the token and creates a JWT for the user.
     """
+    # The `state` parameter is used to prevent CSRF attacks.
     if not session.get("state") == request.args.get("state"):
-        print(f"State mismatch error. Session state: {session.get('state')}, Request state: {request.args.get('state')}", file=sys.stderr)
-        return jsonify({"msg": "State mismatch. Please try again."}), 400
+        abort(500)  # State does not match!
     
+    # Exchange the authorization code for an access token and credentials.
     try:
         flow.fetch_token(authorization_response=request.url)
     except Exception as e:
-        print(f"Error fetching token from Google: {e}", file=sys.stderr)
-        return jsonify({"msg": f"Failed to fetch token from Google: {e}"}), 500
+        print(f"Error fetching token: {e}")
+        return jsonify({"msg": "Failed to fetch token from Google"}), 500
 
     credentials = flow.credentials
     
+    # Use the credentials to get user info from Google.
     request_session = requests.session()
     cached_session = cachecontrol.CacheControl(request_session)
     token_request = google.auth.transport.requests.Request(session=cached_session)
@@ -151,22 +162,27 @@ def callback():
             audience=GOOGLE_CLIENT_ID
         )
     except Exception as e:
-        print(f"Error verifying ID token: {e}", file=sys.stderr)
-        return jsonify({"msg": f"Failed to verify Google ID token: {e}"}), 500
+        print(f"Error verifying ID token: {e}")
+        return jsonify({"msg": "Failed to verify Google ID token"}), 500
 
+    # Extract user information from the ID token.
     google_id = id_info.get("sub")
     email = id_info.get("email")
     user_name = id_info.get("name")
 
+    # Check if the user already exists in our database.
     user = User.query.filter_by(email=email).first()
     if not user:
+        # If the user doesn't exist, create a new one.
         user = User(email=email, userName=user_name, password_hash=None)
         db.session.add(user)
         db.session.commit()
     
+    # Create a JWT for the user.
     access_token = create_access_token(identity=str(user.id))
     
-    return redirect(f"{frontend_url}/Home?access_token={access_token}")
+    # Redirect the user to the frontend with the JWT in the URL.
+    return redirect(f"https://todo-app-frontend.onrender.com/Home?access_token={access_token}")
 
 @app.route("/logout")
 def logout():
