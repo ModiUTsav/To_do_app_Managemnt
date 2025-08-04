@@ -10,3 +10,4 @@ python-dotenv # For managing environment variables
 gunicorn
 google-auth
 google-auth-oauthlib
+flask-cors
