@@ -1,3 +1,4 @@
+# app.py
 # To fix the InsecureTransportError for local development.
 # This MUST be set before importing any Flask-Dance or OAuth libraries.
 import os
@@ -17,6 +18,7 @@ from Config import Config
 from models import db, User, Todo
 from flask_cors import CORS
 from sqlalchemy.exc import IntegrityError
+import uuid
 
 # The following line is crucial for local development, as it allows HTTP traffic.
 # It is ignored on production servers with HTTPS.
@@ -30,7 +32,6 @@ app.config.from_object(Config)
 CORS(app, supports_credentials=True)
 
 # --- Check for required environment variables and set Flask configuration ---
-# A robust application should not start without these critical variables.
 SECRET_KEY = os.environ.get("SECRET_KEY")
 if not SECRET_KEY:
     print("Error: SECRET_KEY environment variable must be set.", file=sys.stderr)
@@ -39,13 +40,12 @@ app.secret_key = SECRET_KEY
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET")
-backend_url = os.environ.get("BACKEND_URL", "http://127.0.0.1:5000")
+GOOGLE_OAUTH_REDIRECT_URI = os.environ.get("GOOGLE_OAUTH_REDIRECT_URI")
 frontend_url = os.environ.get("FRONTEND_URL", "http://127.0.0.1:5173")
 
-if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
-    print("Error: GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET environment variables must be set.", file=sys.stderr)
+if not all([GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI, frontend_url]):
+    print("Error: Required Google OAuth environment variables are missing.", file=sys.stderr)
     sys.exit(1)
-
 
 # Initialize extensions
 db.init_app(app)
@@ -53,7 +53,7 @@ migrate = Migrate(app, db)
 jwt = JWTManager(app)
 mail = Mail(app)
 
-# Set up the OAuth flow with environment variables
+# Set up the OAuth flow using the redirect URI from environment variables
 flow = Flow.from_client_config(
     client_config={
         "web": {
@@ -65,7 +65,7 @@ flow = Flow.from_client_config(
         }
     },
     scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email", "openid"],
-    redirect_uri=f"{backend_url}/callback" # This is now dynamic
+    redirect_uri=GOOGLE_OAUTH_REDIRECT_URI
 )
 
 # Create the database tables if they don't exist
@@ -138,9 +138,11 @@ def callback():
     Handles the callback from Google after the user signs in.
     It verifies the token and creates a JWT for the user.
     """
-    # Check for state mismatch
-    if not session.get("state") == request.args.get("state"):
-        print(f"State mismatch error. Session state: {session.get('state')}, Request state: {request.args.get('state')}", file=sys.stderr)
+    # Pop the state from the session to prevent CSRF attacks
+    session_state = session.pop("state", None)
+    
+    if not session_state or session_state != request.args.get("state"):
+        print(f"State mismatch or missing. Session state: {session_state}, Request state: {request.args.get('state')}", file=sys.stderr)
         return jsonify({"msg": "State mismatch. Please try again."}), 400
     
     # Try to fetch the token
@@ -177,6 +179,7 @@ def callback():
             user = User(email=email, userName=user_name, password_hash=None)
             db.session.add(user)
             db.session.commit()
+            # Optional: send a welcome email here
         except IntegrityError:
             db.session.rollback()
             user = User.query.filter_by(email=email).first()
@@ -224,7 +227,10 @@ def create_todo():
     if user and user.email:
         msg = Message("New To-Do Created", sender=app.config['MAIL_USERNAME'], recipients=[user.email])
         msg.body = f"Hello {user.email},\n\nA new to-do item with the title '{title}' has been created in your account."
-        mail.send(msg)
+        try:
+            mail.send(msg)
+        except Exception as e:
+            print(f"Error sending email: {e}", file=sys.stderr)
     
     return jsonify({"msg": "To-do created successfully", "todo": new_todo.serialize()}), 201
 
