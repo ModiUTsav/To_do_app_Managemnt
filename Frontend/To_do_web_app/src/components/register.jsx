@@ -19,7 +19,7 @@ const Register = ()=>{
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const API_CALL = `http://127.0.0.1:5000/register`;
+    const API_CALL = `https://to-do-app-managemnt-1.onrender.com/register`;
 
     console.log('Registration Form Data:', formData);
     if (!formData.userName || !formData.email || !formData.password) {
@@ -46,7 +46,7 @@ const Register = ()=>{
   };
     // This function now correctly redirects to the Google login route on the backend
     const google_login = async ()=>{
-      window.location.href = 'http://127.0.0.1:5000/login/google';
+      window.location.href = 'https://to-do-app-managemnt-1.onrender.com/login/google';
     }
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gray-100"> 
