@@ -8,3 +8,4 @@ Flask-Dance[google]
 Flask-Mail
 python-dotenv # For managing environment variables
 gunicorn
+google-auth
