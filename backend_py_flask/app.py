@@ -1,5 +1,6 @@
+# To fix the InsecureTransportError for local development.
+# This MUST be set before importing any Flask-Dance or OAuth libraries.
 import os
-import pathlib
 import sys
 import requests
 from flask import Flask, session, abort, redirect, request, jsonify
@@ -22,32 +23,35 @@ from sqlalchemy.exc import IntegrityError
 os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
 # Create the Flask application instance
-app = Flask(__name__)
+app = Flask("Google Login App")
 
 # Load configuration from the Config object
 app.config.from_object(Config)
 CORS(app, supports_credentials=True)
 
-# Set a secret key for session management, required for OAuth.
-# Use an environment variable, with a fallback for local dev.
-app.secret_key = os.environ.get("SECRET_KEY", os.urandom(24))
+# --- Check for required environment variables and set Flask configuration ---
+# A robust application should not start without these critical variables.
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    print("Error: SECRET_KEY environment variable must be set.", file=sys.stderr)
+    sys.exit(1)
+app.secret_key = SECRET_KEY
+
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET")
+backend_url = os.environ.get("BACKEND_URL", "http://127.0.0.1:5000")
+frontend_url = os.environ.get("FRONTEND_URL", "http://127.0.0.1:5173")
+
+if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+    print("Error: GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET environment variables must be set.", file=sys.stderr)
+    sys.exit(1)
+
 
 # Initialize extensions
 db.init_app(app)
 migrate = Migrate(app, db)
 jwt = JWTManager(app)
 mail = Mail(app)
-
-# --- Google OAuth Configuration based on your code ---
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET")
-backend_url = os.environ.get("BACKEND_URL", "http://127.0.0.1:5000")
-frontend_url = os.environ.get("FRONTEND_URL", "http://127.0.0.1:5173")
-
-# Check if required environment variables are set
-if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
-    print("Error: GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET environment variables must be set.", file=sys.stderr)
-    sys.exit(1)
 
 # Set up the OAuth flow with environment variables
 flow = Flow.from_client_config(
@@ -61,7 +65,7 @@ flow = Flow.from_client_config(
         }
     },
     scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email", "openid"],
-    redirect_uri=f"{backend_url}/callback" # This must match the URI in the Google Cloud Console
+    redirect_uri=f"{backend_url}/callback" # This is now dynamic
 )
 
 # Create the database tables if they don't exist
