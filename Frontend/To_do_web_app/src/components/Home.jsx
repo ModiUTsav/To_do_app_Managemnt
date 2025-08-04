@@ -53,7 +53,7 @@ const Dashboard = () => {
       fetchTodos();
     } else {
       // No token at all, redirect to login
-      navigate('/login');
+      navigate('/');
     }
   }, [navigate]);
 
