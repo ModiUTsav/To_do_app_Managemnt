@@ -43,6 +43,11 @@ GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET")
 GOOGLE_OAUTH_REDIRECT_URI = os.environ.get("GOOGLE_OAUTH_REDIRECT_URI")
 frontend_url = os.environ.get("FRONTEND_URL", "http://127.0.0.1:5173")
 
+print(f"GOOGLE_CLIENT_ID: {GOOGLE_CLIENT_ID}")
+print(f"GOOGLE_CLIENT_SECRET: {GOOGLE_CLIENT_SECRET}")
+print(f"GOOGLE_OAUTH_REDIRECT_URI: {GOOGLE_OAUTH_REDIRECT_URI}")
+print(f"FRONTEND_URL: {frontend_url}")
+
 if not all([GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_OAUTH_REDIRECT_URI, frontend_url]):
     print("Error: Required Google OAuth environment variables are missing.", file=sys.stderr)
     sys.exit(1)
