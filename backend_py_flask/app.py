@@ -61,7 +61,7 @@ flow = Flow.from_client_config(
         }
     },
     scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email", "openid"],
-    redirect_uri="http://127.0.0.1:5000/callback" # This URL must match the one in your Google API console.
+    redirect_uri="https://to-do-app-managemnt-1.onrender.com/callback" # This URL must match the one in your Google API console.
 )
 
 # Create the database tables if they don't exist
