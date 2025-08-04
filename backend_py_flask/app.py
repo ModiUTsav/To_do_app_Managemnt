@@ -1,6 +1,4 @@
-# app.py
-# To fix the InsecureTransportError for local development.
-# This MUST be set before importing any Flask-Dance or OAuth libraries.
+
 import os
 import sys
 import requests

@@ -161,7 +161,7 @@ const Home = () => {
         ) : (
           <ul className="space-y-4">
             {todos.map((todo) => (
-              <li key={todo.id} className="bg-gray-50 p-5 rounded-xl text-white-800 shadow-sm flex items-center justify-between hover:bg-gray-100 transition duration-300">
+              <li key={todo.id} className="bg-gray-50 p-5 rounded-xl  shadow-sm flex items-center justify-between hover:bg-gray-100 transition duration-300  text-white-800">
                 {editingTodoId === todo.id ? (
                   // Form for editing the todo title
                   <form onSubmit={saveEditedTodo} className="flex-grow flex items-center space-x-2">
