@@ -187,7 +187,7 @@ def callback():
     
     # --- IMPORTANT CHANGE: Redirect to the live frontend URL using an environment variable ---
     # Get the frontend URL from environment variables, defaulting to a local URL for development.
-    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    frontend_url = os.environ.get("FRONTEND_URL", "https://todo-app-frontend.onrender.com")
     return redirect(f"{frontend_url}/Home?access_token={access_token}")
 
 @app.route("/logout")
