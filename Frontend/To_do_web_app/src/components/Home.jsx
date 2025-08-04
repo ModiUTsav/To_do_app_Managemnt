@@ -157,11 +157,11 @@ const Home = () => {
 
         {/* Display the list of todos */}
         {todos.length === 0 ? (
-          <p className="text-center text-white-500 text-lg">You have no to-do items.</p>
+          <p className="text-center text-grey-500 text-lg">You have no to-do items.</p>
         ) : (
           <ul className="space-y-4">
             {todos.map((todo) => (
-              <li key={todo.id} className="bg-gray-50 p-5 rounded-xl  shadow-sm flex items-center justify-between hover:bg-gray-100 transition duration-300  text-white-800">
+              <li key={todo.id} className="bg-gray-50 p-5 rounded-xl  shadow-sm flex items-center justify-between hover:bg-gray-100 transition duration-300  text-grey-800">
                 {editingTodoId === todo.id ? (
                   // Form for editing the todo title
                   <form onSubmit={saveEditedTodo} className="flex-grow flex items-center space-x-2">
