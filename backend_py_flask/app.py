@@ -49,6 +49,10 @@ mail = Mail(app)
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_OAUTH_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_OAUTH_CLIENT_SECRET")
 
+# --- IMPORTANT CHANGE: Use an environment variable for the backend redirect URI ---
+# Get the backend URL from environment variables, defaulting to a local URL for development.
+backend_url = os.environ.get("BACKEND_URL", "http://localhost:5000")
+
 # Initialize the Google OAuth flow directly with environment variables.
 flow = Flow.from_client_config(
     client_config={
@@ -61,7 +65,7 @@ flow = Flow.from_client_config(
         }
     },
     scopes=["https://www.googleapis.com/auth/userinfo.profile", "https://www.googleapis.com/auth/userinfo.email", "openid"],
-    redirect_uri="https://to-do-app-managemnt-1.onrender.com/callback" # This URL must match the one in your Google API console.
+    redirect_uri=f"{backend_url}/callback" # This URL now dynamically points to the deployed backend.
 )
 
 # Create the database tables if they don't exist
@@ -181,8 +185,10 @@ def callback():
     # Create a JWT for the user.
     access_token = create_access_token(identity=str(user.id))
     
-    # Redirect the user to the frontend with the JWT in the URL.
-    return redirect(f"http://localhost:5173/Home?access_token={access_token}")
+    # --- IMPORTANT CHANGE: Redirect to the live frontend URL using an environment variable ---
+    # Get the frontend URL from environment variables, defaulting to a local URL for development.
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    return redirect(f"{frontend_url}/Home?access_token={access_token}")
 
 @app.route("/logout")
 def logout():
