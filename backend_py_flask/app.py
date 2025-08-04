@@ -217,7 +217,7 @@ def create_todo():
     """Create a new to-do item for the current user."""
     current_user_id = int(get_jwt_identity())
     data = request.get_json()
-    title = data.get("title")
+    title = data.get("title", "").strip()
 
     if not title:
         return jsonify({"msg": "Title is required"}), 400
@@ -235,7 +235,11 @@ def create_todo():
         except Exception as e:
             print(f"Error sending email: {e}", file=sys.stderr)
     
-    return jsonify({"msg": "To-do created successfully", "todo": new_todo.serialize()}), 201
+    return jsonify({
+        "id": new_todo.id,
+        "title": new_todo.title,
+        "completed": new_todo.completed
+    }), 201
 
 @app.route("/todos", methods=["GET"])
 @jwt_required()
