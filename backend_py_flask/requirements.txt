@@ -1,0 +1,9 @@
+Flask
+Flask-SQLAlchemy
+Flask-Migrate # For database migrations
+psycopg2-binary # For PostgreSQL connection
+Werkzeug # For password hashing
+Flask-JWT-Extended
+Flask-Dance[google]
+Flask-Mail
+python-dotenv # For managing environment variables
